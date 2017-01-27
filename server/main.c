@@ -20,6 +20,7 @@
 
 
 void close_handler(int signo);
+void segfault_handler(int signo);
 
 void activate_message(char **args, char* response, int response_size);
 void deactivate_message(char **args, char* response, int response_size);
@@ -30,7 +31,7 @@ void register_user(char **args, char* response, int response_size);
 void stalk_user(char** args, char* response, size_t response_size);
 
 
-bool close_server = false;
+bool close_server = false, segflt = false;
 const int enable = 1;
 int error;
 
@@ -132,6 +133,7 @@ int main(int argc, char *argv[])
         }
 
         setsockopt(newsockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+        signal(SIGSEGV, segfault_handler);
 
         errno = 0;
         SSL *cSSL = SSL_new(sslctx);
@@ -147,6 +149,9 @@ int main(int argc, char *argv[])
                 break;
 
             error = SSL_read(cSSL, request + used, RESPONSE_SIZE - used);
+
+            if (segflt) break;
+
             switch(SSL_get_error(cSSL, error))
             {
                 case SSL_ERROR_NONE:
@@ -167,6 +172,14 @@ int main(int argc, char *argv[])
             fflush(stdout);
             if(!error)
                 break;
+        }
+
+        signal(SIGSEGV, SIG_DFL);
+        if (segflt)
+        {
+            printf("Connection timed out");
+            segflt = false;
+            continue;
         }
 
         memset(args, 0, sizeof(args));
@@ -329,8 +342,8 @@ void expand_message(char **args, char *response, int response_size)
  * Sends a string formatted like:
  * <ul>
  * <li>0 (if succeeding)
- * <li>id of the first message
  * <li>page size
+ * <li>id of the first message
  * <li>messages formatted like
  * <ul>
  * <li>date
@@ -353,7 +366,7 @@ void get_page(char** args, char* response, int response_size)
     char date[RESPONSE_SIZE], temp[RESPONSE_SIZE];
     int size;
     msg* page = get_messages(message_id, &size);
-    snprintf(response, (size_t)response_size, "%d&%d&%d", 0, message_id, size);
+    snprintf(response, (size_t)response_size, "%d&%d&%d", 0, size, message_id);
     size_t used = strlen(response);
 
     for (int i = 0; i < size; i++)
@@ -420,7 +433,6 @@ void stalk_user(char** args, char* response, size_t response_size)
     msg* page = get_user_messages(args[3], message_id, ids, &size);
 
     snprintf(response, response_size, "%d&%d", 0, size);
-    size_t used = strlen(response);
     for (int i = 0; i < size; i++)
     {
         msg message = page[i];
@@ -428,8 +440,7 @@ void stalk_user(char** args, char* response, size_t response_size)
             snprintf(date, sizeof(date), "%d", -1);
 
         snprintf(temp, RESPONSE_SIZE, "&%d&%s&%s&%d", ids[i], date, message.subject, message.active);
-        strncat(response, temp, size - (used + 1));
-        used = strlen(response);
+        strncat(response, temp, RESPONSE_SIZE - (strlen(response) + 1));
     }
 
     if(size == 0 && !exists_user(args[3]))
@@ -444,4 +455,10 @@ void stalk_user(char** args, char* response, size_t response_size)
 void close_handler(int signo)
 {
     close_server = true;
+}
+
+
+void segfault_handler(int signo)
+{
+    segflt = true;
 }

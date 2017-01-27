@@ -7,6 +7,7 @@
 #include "../common.h"
 
 
+#define ADDRESS "127.0.0.1"
 #define COMMAND_SIZE 8
 #define CONTENT_SIZE 174
 #define PASSWORD_SIZE 32
@@ -56,7 +57,7 @@ void ssl_open()
 
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
-    inet_aton("127.0.0.1", &serv_addr.sin_addr);
+    inet_aton(ADDRESS, &serv_addr.sin_addr);
     serv_addr.sin_port = htons(PORT);
     while(true)
     {
@@ -182,14 +183,15 @@ void server_error()
 }
 
 
-void change_pwd();
-void stalk_user();
-
 void activate_message();
+void change_pwd();
 void deactivate_message();
 void expand_message();
-void get_page();
 void insert_message();
+void stalk_user();
+
+void get_page();
+
 
 
 
@@ -219,7 +221,6 @@ int main(int argc, char *argv[]) {
 
     get_user(user);
     get_password(password);
-
 
     OpenSSL_add_ssl_algorithms();
     SSL_load_error_strings();
@@ -304,18 +305,18 @@ int main(int argc, char *argv[]) {
                 int_argument = -1;
                 get_page();
             }
-/*            else if (strcmp(args[0], "G") == 0)
-                get_page(args, response, sizeof(response));*/
-            else if (command[0] == 'E')
+            else if(command[0] == 'G')
+                get_page();
+            else if(command[0] == 'E')
                 expand_message();
             else if(command[0] == 'I')
                 insert_message();
-/*            else if(strcmp(args[0], "D") == 0)
-                deactivate_message(args, response, sizeof(response));*/
+            else if(command[0] == 'D')
+                deactivate_message();
             else if(command[0] == 'S')
                 stalk_user();
-/*            else if (strcmp(args[0], "A") == 0)
-                activate_message(args, response, sizeof(response));*/
+            else if (command[0] == 'A')
+                activate_message();
             else if (strcmp(command, "P") == 0)
                 change_pwd();
             else
@@ -327,6 +328,33 @@ int main(int argc, char *argv[]) {
     }
 }
 
+
+
+void activate_message()
+{
+    int message_id = int_argument;
+    memset(command, 0, COMMAND_SIZE);
+    memset(request, 0, REQUEST_SIZE);
+    memset(response, 0, RESPONSE_SIZE);
+    int_argument = 0;
+
+    snprintf(request, REQUEST_SIZE, "A&%s&%s&%d", user, password, message_id);
+    ssl_open();
+    SSL_write(cSSL, request, REQUEST_SIZE);
+    SSL_read(cSSL, response, RESPONSE_SIZE);
+    ssl_close(sockfd, cSSL);
+
+    check_authentication();
+
+    if(strtok(response, "&")[0] != '0')
+    {
+        printf("\n%s", strtok(NULL, "&"));
+        return;
+    }
+
+    int_argument = message_id;
+    command[0] = 'E';
+}
 
 
 void change_pwd()
@@ -375,6 +403,33 @@ void change_pwd()
 }
 
 
+void deactivate_message()
+{
+    int message_id = int_argument;
+    memset(command, 0, COMMAND_SIZE);
+    memset(request, 0, REQUEST_SIZE);
+    memset(response, 0, RESPONSE_SIZE);
+    int_argument = 0;
+
+    snprintf(request, REQUEST_SIZE, "D&%s&%s&%d", user, password, message_id);
+    ssl_open();
+    SSL_write(cSSL, request, REQUEST_SIZE);
+    SSL_read(cSSL, response, RESPONSE_SIZE);
+    ssl_close(sockfd, cSSL);
+
+    check_authentication();
+
+    if(strtok(response, "&")[0] != '0')
+    {
+        printf("\n%s", strtok(NULL, "&"));
+        return;
+    }
+
+    int_argument = message_id;
+    command[0] = 'E';
+}
+
+
 void expand_message()
 {
     int message_id = int_argument;
@@ -412,7 +467,18 @@ void expand_message()
     else
         printf("\nmessage %d by %s at %s - DELETED\nSubject: %s\n%s", message_id, user_msg, date, subject, content);
 
-    printf("\n\nType 'P' to read the previous message, 'N' to read the next, ");
+    printf("\n\nType ");
+    if (strcmp(user, user_msg) == 0)
+    {
+        if (active)
+            printf("'D' to delete ");
+        else
+            printf("'R' to restore ");
+        printf("this message, ");
+    }
+
+
+    printf("'P' to read the previous message, 'N' to read the next, ");
     printf("'UF' to see the first message of the user, 'UN' to see his/her next messages, ");
     printf("nothing to return to the main menu: ");
     fflush(stdout);
@@ -420,14 +486,22 @@ void expand_message()
     fgets(command, COMMAND_SIZE, stdin);
     size_t length = strlen(command);
 
-    if(strcmp(command, "N\n") == 0)
+    if(strcmp(command, "D\n") == 0 && strcmp(user, user_msg) == 0)
+        int_argument = message_id;
+    else if(strcmp(command, "R\n") == 0 && strcmp(user, user_msg) == 0)
+    {
+        memset(command, 0, COMMAND_SIZE);
+        command[0] = 'A';
+
+        int_argument = message_id;
+    }
+    else if(strcmp(command, "N\n") == 0)
     {
         memset(command, 0, COMMAND_SIZE);
         command[0] = 'E';
 
         int_argument = message_id;
         int_argument++;
-        return;
     }
     else if(strcmp(command, "P\n") == 0)
     {
@@ -436,7 +510,6 @@ void expand_message()
 
         int_argument = message_id;
         int_argument--;
-        return;
     }
     else if (length > COMMAND_SIZE - 2  && command[COMMAND_SIZE - 2] != '\n')
     {
@@ -446,32 +519,27 @@ void expand_message()
     }
     else if(command[0] == 'U')
     {
-        memset(command, 0, COMMAND_SIZE);
-        command[0] = 'S';
-
-        memset(user_argument, 0, USER_SIZE + 2);
-        snprintf(user_argument, USER_SIZE, user_msg);
-
         if (command[1] == 'N')
         {
             int_argument = message_id;
             int_argument++;
         }
 
-        return;
+        memset(command, 0, COMMAND_SIZE);
+        command[0] = 'S';
+
+        memset(user_argument, 0, USER_SIZE + 2);
+        snprintf(user_argument, USER_SIZE, user_msg);
     }
-
-    memset(command, 0, COMMAND_SIZE);
+    else
+        memset(command, 0, COMMAND_SIZE);
 }
-
-
 
 
 void get_page()
 {
 
 }
-
 
 
 void insert_message()

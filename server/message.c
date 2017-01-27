@@ -50,9 +50,7 @@ bool delete_message(int id)
 
 msg* get_message(int id)
 {
-    if (id > last_message)
-        return NULL;
-    else if(id < 0)
+    if (id > last_message || id < 0)
         return NULL;
 
     return copy_message(&messages[id/page_size][id%page_size]);
@@ -61,11 +59,9 @@ msg* get_message(int id)
 
 msg* get_messages(int start, int* size)
 {
-    if (start > last_message)
-        return NULL;
-    else if (start == -1)
+    if (start == -1)
         start = last_message;
-    else if(start < 0)
+    else if (start > last_message || start < 0)
         return NULL;
 
     msg* new_page = malloc(page_size*sizeof(msg));
@@ -86,25 +82,23 @@ msg* get_user_messages(char* user, int start, int* ids, int* size)
 {
     *size = 0;
 
-    if (start > last_message)
-        return NULL;
-    else if(start < 0)
+    if (start > last_message || start < 0)
         return NULL;
 
     msg* new_page = malloc(page_size*sizeof(msg));
     msg* copy_message;
-    for (int i = start; i <= last_message && *size < page_size; i++)
+    for (int i = start; (i <= last_message) && (*size < page_size); i++)
     {
         msg* message = &(messages[i/page_size][i%page_size]);
         if (strcmp(message->user, user) != 0)
             continue;
 
         copy_message = get_message(i);
-        new_page[i] = *copy_message;
+        new_page[*size] = *copy_message;
         free(copy_message);
 
+        ids[*size] = i;
         (*size)++;
-        ids[i] = i;
     }
 
     return new_page;
