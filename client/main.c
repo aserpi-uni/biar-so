@@ -11,7 +11,7 @@
 #define COMMAND_SIZE 8
 #define CONTENT_SIZE 174
 #define PASSWORD_SIZE 32
-#define subject_SIZE 32
+#define SUBJECT_SIZE 32
 #define PORT 42318
 #define REQUEST_SIZE 512
 #define RESPONSE_SIZE 4096
@@ -548,24 +548,24 @@ void insert_message()
     memset(request, 0, REQUEST_SIZE);
     memset(response, 0, RESPONSE_SIZE);
 
-    char subject[subject_SIZE + 2];
+    char subject[SUBJECT_SIZE + 2];
     while (true)
     {
-        printf("\nType the subject.\nIts length must be comprised from %d to %d ASCII characters", 1, subject_SIZE - 1);
+        printf("\nType the subject.\nIts length must be comprised from %d to %d ASCII characters", 1, SUBJECT_SIZE - 1);
         printf(" and can not contain '&'.\n");
         fflush(stdout);
 
-        fgets(subject, subject_SIZE + 2, stdin);
+        fgets(subject, SUBJECT_SIZE + 2, stdin);
         error = false;
 
         size_t length = strlen(subject);
 
-        if (length > 1 && length <= subject_SIZE && check_ampersend(subject, length))
+        if (length > 1 && length <= SUBJECT_SIZE && check_ampersend(subject, length))
         {
             subject[length - 1] = '\0';
             break;
         }
-        else if(length > subject_SIZE && subject[subject_SIZE] != '\n')
+        else if(length > SUBJECT_SIZE && subject[SUBJECT_SIZE] != '\n')
             while (fgetc(stdin) != '\n');
 
         printf("\nWrong input!\n\n");

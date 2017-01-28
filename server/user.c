@@ -3,12 +3,6 @@
 #include "user.h"
 
 
-
-#define USER_SIZE 16
-#define PASSWORD_SIZE 32
-
-
-
 struct usr {
     char id[USER_SIZE];
     char pwd[PASSWORD_SIZE];
@@ -17,6 +11,7 @@ struct usr {
 
 
 int last_user, unit_size, unities;
+
 struct usr* users;
 struct usr* get_user(char* id);
 
@@ -79,24 +74,23 @@ void close_user()
 
 char* user(char* id, char* pwd)
 {
+    last_user++;
+
     for (int i = 0; i < last_user; i++)
         if (strcmp(users[i].id, id) == 0)
             return NULL;
 
-    last_user++;
-
-    if (last_user > unit_size*unities)
+    if (last_user == unit_size*unities)
     {
         unities++;
 
-        struct usr* new_users = realloc(users, (size_t)unit_size);
+        struct usr* new_users = realloc(users, unit_size*sizeof(user));
         if (new_users == NULL)
         {
             unities--;
             return NULL;
         }
 
-        free(users);
         users = new_users;
     }
 

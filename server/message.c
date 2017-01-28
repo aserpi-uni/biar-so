@@ -3,10 +3,6 @@
 #include "message.h"
 
 
-#define CONTENT_SIZE 174
-#define subject_SIZE 32
-#define USER_SIZE 16
-
 
 int last_message;
 msg** messages;
@@ -31,7 +27,7 @@ msg* copy_message(msg* message)
 
 void close_message()
 {
-    for (int i = 0; i < last_message/10; i++)
+    for (int i = 0; i < last_message/page_size; i++)
         free(messages[i]);
     free(messages);
 }
@@ -53,7 +49,12 @@ msg* get_message(int id)
     if (id > last_message || id < 0)
         return NULL;
 
-    return copy_message(&messages[id/page_size][id%page_size]);
+    msg* message = copy_message(&messages[id/page_size][id%page_size]);
+
+    if (!message->active)
+        strncpy(message->content, "DELETED", CONTENT_SIZE);
+
+    return message;
 }
 
 
@@ -111,7 +112,7 @@ int initialize_message(int pgs, int pg_size)
     pages = pgs;
     page_size = pg_size;
 
-    messages = malloc(pages * page_size * sizeof(msg*));
+    messages = malloc(pages * sizeof(msg*));
     if (messages == NULL)
         return -1;
 
@@ -123,20 +124,21 @@ int message(char* user, char* subject, char* content)
 {
     last_message++;
 
-    if (last_message%10 == 0)
+    if (last_message%page_size == 0)
     {
-        if (last_message/10 > pages)
+        if (last_message/page_size > pages)
         {
-            size_t new_pages = (size_t)(last_message/10*1.5);
-            msg** new_messages = realloc(messages, new_pages);
-            if (new_messages == NULL) {
+            int new_pages = (int)(last_message / page_size * 1.5);
+            msg** new_messages = realloc(messages, (size_t)new_pages);
+            if (new_messages == NULL)
+            {
                 last_message--;
                 return -1;
             }
 
             free(messages);
             messages = new_messages;
-            pages = (int)new_pages;
+            pages = new_pages;
         }
 
         msg* new_array = malloc(page_size*sizeof(msg));
@@ -150,7 +152,7 @@ int message(char* user, char* subject, char* content)
 
     messages[last_message/page_size][last_message%page_size].active = true;
     strncpy(messages[last_message/page_size][last_message%page_size].content, content, CONTENT_SIZE);
-    strncpy(messages[last_message/page_size][last_message%page_size].subject, subject, subject_SIZE);
+    strncpy(messages[last_message/page_size][last_message%page_size].subject, subject, SUBJECT_SIZE);
     time(&messages[last_message/page_size][last_message%page_size].timestamp);
     strncpy(messages[last_message/page_size][last_message%page_size].user, user, USER_SIZE);
 

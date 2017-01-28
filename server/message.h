@@ -1,8 +1,9 @@
 #include "stdbool.h"
 #include <time.h>
 
+
 #define CONTENT_SIZE 174
-#define subject_SIZE 32
+#define SUBJECT_SIZE 32
 #define USER_SIZE 16
 
 
@@ -14,7 +15,7 @@ typedef struct msg {
     bool active;
     time_t timestamp;
     char user[USER_SIZE];
-    char subject[subject_SIZE];
+    char subject[SUBJECT_SIZE];
     char content[CONTENT_SIZE];
 } msg;
 

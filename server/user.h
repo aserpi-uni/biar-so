@@ -1,6 +1,9 @@
 #include <stdbool.h>
 
 
+#define USER_SIZE 16
+#define PASSWORD_SIZE 32
+
 
 /**
  * Struct containing an user.
