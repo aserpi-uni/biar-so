@@ -9,6 +9,7 @@
 #include "../common.h"
 
 
+
 #define FORMAT_ERROR "%d&%s"
 #define MAX_ARGUMENTS 5
 #define PAGE_SIZE 10
@@ -17,6 +18,7 @@
 #define REQUEST_SIZE 512
 #define RESPONSE_SIZE 4096
 #define USERS 50
+
 
 
 void close_handler(int signo);
@@ -31,6 +33,7 @@ void register_user(char **args, char* response, int response_size);
 void stalk_user(char** args, char* response, size_t response_size);
 
 
+
 bool close_server = false, segflt = false;
 const int enable = 1;
 int error;
@@ -39,6 +42,7 @@ int main(int argc, char *argv[])
 {
     signal(SIGINT, close_handler);
     signal(SIGTERM, close_handler);
+    signal(SIGPIPE, SIG_IGN);
 
     error = initialize_board(USERS, PAGES, PAGE_SIZE);
     if (error < 0)
@@ -116,15 +120,13 @@ int main(int argc, char *argv[])
     char* args[MAX_ARGUMENTS];
     int auth, count, newsockfd;
     size_t size;
-    struct sockaddr_in* cli_addr = (struct sockaddr_in*)malloc(sizeof(struct sockaddr_in));
     while (!close_server)
     {
         size = sizeof(struct sockaddr_in);
-        memset(cli_addr, 0, size);
         memset(request, 0, REQUEST_SIZE);
         memset(response, 0, RESPONSE_SIZE);
 
-        newsockfd = accept(sockfd, (struct sockaddr*)cli_addr, (socklen_t*)&size);
+        newsockfd = accept(sockfd, NULL, NULL);
         if (newsockfd == -1)
         {
             printf("Error %d when accepting connection!", errno);
@@ -160,7 +162,9 @@ int main(int argc, char *argv[])
                     break;
                 case SSL_ERROR_ZERO_RETURN:
                     printf("Connection closed by the client.");
-                    error = true;
+                    error = false;
+                    segflt = true;
+                    break;
                 case SSL_ERROR_WANT_READ:
                     continue;
                 default:
@@ -202,13 +206,12 @@ int main(int argc, char *argv[])
 
             continue;
         }
-        else if (strcmp(args[0], "R") == 0)
+        if (strcmp(args[0], "R") == 0)
         {
             register_user(args, response, sizeof(response));
 
             SSL_write(cSSL, response, (int)strlen(response));
             close(newsockfd);
-
             continue;
         }
 
@@ -230,7 +233,6 @@ int main(int argc, char *argv[])
         if (error)
         {
             SSL_write(cSSL, response, (int)strlen(response));
-
             close(newsockfd);
             continue;
         }
@@ -242,19 +244,23 @@ int main(int argc, char *argv[])
         else if (strcmp(args[0], "E") == 0)
             expand_message(args, response, sizeof(response));
         else if(strcmp(args[0], "I") == 0)
+        {
             if(args[4] == NULL)
                 snprintf(response, sizeof(response), FORMAT_ERROR, 4,
                          "Invalid number of arguments, check your syntax!");
             else
                 insert_message(args, response, sizeof(response));
+        }
         else if(strcmp(args[0], "D") == 0)
             deactivate_message(args, response, sizeof(response));
         else if(strcmp(args[0], "S") == 0)
+        {
             if(args[4] == NULL)
                 snprintf(response, sizeof(response), FORMAT_ERROR, 4,
                          "Invalid number of arguments, check your syntax!");
             else
                 stalk_user(args, response, sizeof(response));
+        }
         else if (strcmp(args[0], "A") == 0)
             activate_message(args, response, sizeof(response));
         else if (strcmp(args[0], "P") == 0)
@@ -274,19 +280,18 @@ int main(int argc, char *argv[])
 }
 
 
+
+
+
 void activate_message(char **args, char *response, int response_size)
 {
     char* last_converted;
     int message_id = (int)strtol(args[3], &last_converted, 10);
 
-    if ((last_converted) == args[3] || !delete_message(message_id))
-    {
+    if (last_converted == args[3] || !restore_message(message_id))
         snprintf(response, (size_t)response_size, FORMAT_ERROR, 11, "Nonexistent message!");
-        return;
-    }
-
-    restore_message(message_id);
-    snprintf(response, (size_t)response_size, "%d&Deleted message with id %d", 0, message_id);
+    else
+        snprintf(response, (size_t)response_size, "%d&Deleted message with id %d", 0, message_id);
 }
 
 
@@ -296,14 +301,10 @@ void deactivate_message(char **args, char *response, int response_size)
     char* last_converted;
     int message_id = (int)strtol(args[3], &last_converted, 10);
 
-    if ((last_converted) == args[3] || !delete_message(message_id))
-    {
+    if (last_converted == args[3] || !delete_message(message_id))
         snprintf(response, (size_t)response_size, FORMAT_ERROR, 11, "Nonexistent message!");
-        return;
-    }
-
-    delete_message(message_id);
-    snprintf(response, (size_t)response_size, "%d&Deleted message with id %d", 0, message_id);
+    else
+        snprintf(response, (size_t)response_size, "%d&Deleted message with id %d", 0, message_id);
 }
 
 
@@ -312,24 +313,17 @@ void expand_message(char **args, char *response, int response_size)
 {
     char* last_converted;
     int message_id = (int)strtol(args[3], &last_converted, 10);
+    msg* message;
 
-    if ((last_converted) == args[3])
+    if (last_converted == args[3] || (message = get_message(message_id)) == NULL)
     {
         snprintf(response, (size_t)response_size, FORMAT_ERROR, 11, "Nonexistent message!");
         return;
     }
 
-    msg* message = get_message(message_id);
     char date[512];
-
-    if (message == NULL)
-    {
-        snprintf(response, (size_t)response_size, FORMAT_ERROR, 11, "Nonexistent message!");
-        return;
-    }
-
-    if(!strftime(date, (size_t)sizeof(date), "%F %T %Z", gmtime(&message->timestamp)))
-        snprintf(date, sizeof(date), "%s", "Date not available");
+    if(!strftime(date, sizeof(date), "%F %T %Z", gmtime(&message->timestamp)))
+        snprintf(date, sizeof(date), "Date not available");
     snprintf(response, (size_t)response_size, "%d&%d&%d&%s&%s&%s&%s", 0, message_id, message->active, message->content,
              message->subject, date, message->user);
 
@@ -357,7 +351,7 @@ void get_page(char** args, char* response, int response_size)
 {
     char* last_converted;
     int message_id = (int)strtol(args[3], &last_converted, 10);
-    if ((last_converted) == args[3])
+    if (last_converted == args[3])
     {
         snprintf(response, (size_t)response_size, FORMAT_ERROR, 11, "Nonexistent message!");
         return;
@@ -366,18 +360,16 @@ void get_page(char** args, char* response, int response_size)
     char date[RESPONSE_SIZE], temp[RESPONSE_SIZE];
     int size;
     msg* page = get_messages(message_id, &size);
-    snprintf(response, (size_t)response_size, "%d&%d&%d", 0, size, message_id);
-    size_t used = strlen(response);
+    snprintf(response, (size_t)response_size, "%d&%d", 0, size);
 
     for (int i = 0; i < size; i++)
     {
         msg message = page[i];
         if(!strftime(date, sizeof(date), "%F %T %Z", gmtime(&message.timestamp)))
-            snprintf(date, sizeof(date), "%s", "Date not available");
+            snprintf(date, sizeof(date), "Date not available");
 
         snprintf(temp, RESPONSE_SIZE, "&%s&%s&%s&%d", date, message.user, message.subject, message.active);
-        strncat(response, temp, size - (used + 1));
-        used = strlen(response);
+        strncat(response, temp, RESPONSE_SIZE - (strlen(response) + 1));
     }
 
     free(page);
@@ -419,11 +411,10 @@ void register_user(char **args, char *response, int response_size)
 void stalk_user(char** args, char* response, size_t response_size)
 {
     char* last_converted;
-
     int message_id = (int)strtol(args[4], &last_converted, 10);
-    if ((last_converted) == args[4])
+    if (last_converted == args[4])
     {
-        snprintf(response, response_size, FORMAT_ERROR, 11, "Invalid message id!");
+        snprintf(response, response_size, FORMAT_ERROR, 11, "Nonexistent message!");
         return;
     }
 
@@ -437,7 +428,7 @@ void stalk_user(char** args, char* response, size_t response_size)
     {
         msg message = page[i];
         if(!strftime(date, sizeof(date), "%F %T %Z", gmtime(&message.timestamp)))
-            snprintf(date, sizeof(date), "%d", -1);
+            snprintf(date, sizeof(date), "Date not available");
 
         snprintf(temp, RESPONSE_SIZE, "&%d&%s&%s&%d", ids[i], date, message.subject, message.active);
         strncat(response, temp, RESPONSE_SIZE - (strlen(response) + 1));
@@ -445,7 +436,6 @@ void stalk_user(char** args, char* response, size_t response_size)
 
     if(size == 0 && !exists_user(args[3]))
         snprintf(response, response_size, FORMAT_ERROR, 12, "Nonexistent user!");
-
 
     free(page);
 }
