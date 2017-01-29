@@ -21,9 +21,6 @@
 
 
 
-void close_handler(int signo);
-void segfault_handler(int signo);
-
 void activate_message(char **args, char* response, int response_size);
 void deactivate_message(char **args, char* response, int response_size);
 void expand_message(char **args, char* response, int response_size);
@@ -31,6 +28,9 @@ void get_page(char** args, char* response, int response_size);
 void insert_message(char **args, char* response, int response_size);
 void register_user(char **args, char* response, int response_size);
 void stalk_user(char** args, char* response, size_t response_size);
+
+void close_handler(int signo);
+void segfault_handler(int signo);
 
 
 
@@ -337,7 +337,6 @@ void expand_message(char **args, char *response, int response_size)
  * <ul>
  * <li>0 (if succeeding)
  * <li>page size
- * <li>id of the first message
  * <li>messages formatted like
  * <ul>
  * <li>date
@@ -358,9 +357,9 @@ void get_page(char** args, char* response, int response_size)
     }
 
     char date[RESPONSE_SIZE], temp[RESPONSE_SIZE];
-    int size;
-    msg* page = get_messages(message_id, &size);
-    snprintf(response, (size_t)response_size, "%d&%d", 0, size);
+    int first_message, size;
+    msg* page = get_messages(message_id, &size, &first_message);
+    snprintf(response, (size_t)response_size, "%d&%d&%d", 0, size, first_message);
 
     for (int i = 0; i < size; i++)
     {
@@ -439,6 +438,8 @@ void stalk_user(char** args, char* response, size_t response_size)
 
     free(page);
 }
+
+
 
 
 

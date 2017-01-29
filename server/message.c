@@ -58,23 +58,26 @@ msg* get_message(int id)
 }
 
 
-msg* get_messages(int start, int* size)
+msg* get_messages(int start, int* size, int* id)
 {
+    *size = 0;
+
     if (start == -1)
         start = last_message;
     else if (start > last_message || start < 0)
         return NULL;
 
+    *id = start = start/page_size*page_size;
+
     msg* new_page = malloc(page_size*sizeof(msg));
     start = start/page_size*page_size;
-    for (int i = 0; i < page_size; i++)
+    for (; (*size + start <= last_message) && (*size < page_size); (*size)++)
     {
-        msg* message = get_message(start + i);
-        new_page[i] = *message;
+        msg* message = get_message(start + *size);
+        new_page[*size] = *message;
         free(message);
     }
 
-    *size = page_size;
     return new_page;
 }
 

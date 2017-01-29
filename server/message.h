@@ -64,12 +64,13 @@ msg* get_message(int id);  //Expand
  *
  *
  * @param start First accepted message. If it -1, then the last page is returned.
- * @param size In the location pointer by the parameter is copied the number of messages returned.
+ * @param size In the location pointed by the parameter the number of messages is copied.
+ * @param id In the location pointed by the parameter the id of the first message is copied.
  *
  * @returns An array of messages.
  * If there is no message with such an id or not enough memory to store the page, NULL is returned.
  */
-msg* get_messages(int start, int* size); //Get
+msg* get_messages(int start, int* size, int* id); //Get
 
 
 /**
