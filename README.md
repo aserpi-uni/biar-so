@@ -25,7 +25,7 @@ It is possible to execute the following operations:
 * insert a new message
 * read a message
 * delete and restore the content of a message (only by the proprietary user)
-* retrieve all messages inserted by a specific user (from the first page)
+* retrieve the messages inserted by a specific user (from the first page)
 * retrieve all messages (from either the first or the last page).
 
 ### Board
@@ -41,15 +41,15 @@ request at a time.
 
 ### Encryption
 TLS 1.2 via [OpenSSL](https://www.openssl.org).
-The default key is RSA and the certificate is self-signed, expiring 23/12/2017
-21:16:06 GMT.
+The default algorithm is RSA and the certificate is self-signed, expiring in 23/12/2017
+at 21:16:06 GMT.
 
 ### Compile and install
 This project uses [CMake](https://www.cmake.org), refer to the official website
 for what it is and how to use it. Client and server may be compiled independently, but
 pay attention to set the same port.  
 There are some macros that can be redefined:
-* ADDRESS: server address, default "127.0.0.1"
+* ADDRESS: sets the server address in the client, default "127.0.0.1"
 * PAGE_SIZE: messages per page, default 10
 * PAGES: preallocated pages, default 5
 * PORT: the port number, default 42318
