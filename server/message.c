@@ -11,17 +11,13 @@ int page_size;
 
 
 
-msg* copy_message(msg* message)
+void copy_message(msg* message, msg* copy)
 {
-    msg* new_message = (msg*)malloc(sizeof(msg));
-
-    new_message->active = message->active;
-    strcpy(new_message->content, message->content);
-    strcpy(new_message->subject, message->subject);
-    new_message->timestamp = message->timestamp;
-    strcpy(new_message->user, message->user);
-
-    return new_message;
+    copy->active = message->active;
+    strcpy(copy->content, message->content);
+    strcpy(copy->subject, message->subject);
+    copy->timestamp = message->timestamp;
+    strcpy(copy->user, message->user);
 }
 
 
@@ -35,7 +31,7 @@ void close_message()
 
 bool delete_message(int id)
 {
-    if (id > last_message)
+    if (id < 0 || id > last_message)
         return false;
 
     messages[id/page_size][id%page_size].active = false;
@@ -44,40 +40,40 @@ bool delete_message(int id)
 }
 
 
-msg* get_message(int id)
+bool get_message(int id, msg* message)
 {
-    if (id > last_message || id < 0)
-        return NULL;
+    if (id < 0 || id > last_message)
+        return false;
 
-    msg* message = copy_message(&messages[id/page_size][id%page_size]);
+    copy_message(&messages[id/page_size][id%page_size], message);
 
     if (!message->active)
         strncpy(message->content, "DELETED", CONTENT_SIZE);
 
-    return message;
+    return true;
 }
 
 
 msg* get_messages(int start, int* size, int* id)
 {
     *size = 0;
+    *id = start > 0 ? start : 0;
 
     if (start == -1)
         start = last_message;
-    else if (start > last_message || start < 0)
+    else if (start < 0 || start > last_message)
         return NULL;
 
     *id = start = start/page_size*page_size;
-
     msg* new_page = malloc(page_size*sizeof(msg));
-    start = start/page_size*page_size;
-    for (; (*size + start <= last_message) && (*size < page_size); (*size)++)
+
+    for (; *size < page_size; (*size)++)
     {
-        msg* message = get_message(start + *size);
-        new_page[*size] = *message;
-        free(message);
+        if(!get_message(start + *size, &new_page[*size]))
+            break;
     }
 
+    new_page = realloc(new_page, (*size)*sizeof(msg));
     return new_page;
 }
 
@@ -86,25 +82,23 @@ msg* get_user_messages(char* user, int start, int* ids, int* size)
 {
     *size = 0;
 
-    if (start > last_message || start < 0)
+    if (start < 0 || start > last_message)
         return NULL;
 
     msg* new_page = malloc(page_size*sizeof(msg));
-    msg* copy_message;
     for (int i = start; (i <= last_message) && (*size < page_size); i++)
     {
         msg* message = &(messages[i/page_size][i%page_size]);
+
         if (strcmp(message->user, user) != 0)
             continue;
 
-        copy_message = get_message(i);
-        new_page[*size] = *copy_message;
-        free(copy_message);
-
+        get_message(i, &new_page[*size]);
         ids[*size] = i;
         (*size)++;
     }
 
+    new_page = realloc(new_page, (*size)*sizeof(msg));
     return new_page;
 }
 
@@ -116,10 +110,7 @@ int initialize_message(int pgs, int pg_size)
     page_size = pg_size;
 
     messages = malloc(pages * sizeof(msg*));
-    if (messages == NULL)
-        return -1;
-
-    return 0;
+    return messages != NULL ? 0 : -1;
 }
 
 
@@ -165,10 +156,10 @@ int message(char* user, char* subject, char* content)
 
 bool restore_message(int id)
 {
-    if (id > last_message)
+    if (id < 0 || id > last_message)
         return false;
 
-    messages[id / page_size][id % page_size].active = true;
+    messages[id/page_size][id%page_size].active = true;
 
     return true;
 }

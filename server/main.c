@@ -285,37 +285,33 @@ int main(int argc, char *argv[])
 
 void activate_message(char **args, char *response, int response_size)
 {
-    char* last_converted;
-    int message_id = (int)strtol(args[3], &last_converted, 10);
-
-    if (last_converted == args[3] || !restore_message(message_id))
-        snprintf(response, (size_t)response_size, FORMAT_ERROR, 11, "Nonexistent message!");
-    else
+    int message_id;
+    if (stoint(args[3], &message_id) && restore_message(message_id))
         snprintf(response, (size_t)response_size, "%d&Deleted message with id %d", 0, message_id);
+    else
+        snprintf(response, (size_t)response_size, FORMAT_ERROR, 11, "Nonexistent message!");
+
 }
 
 
 
 void deactivate_message(char **args, char *response, int response_size)
 {
-    char* last_converted;
-    int message_id = (int)strtol(args[3], &last_converted, 10);
-
-    if (last_converted == args[3] || !delete_message(message_id))
-        snprintf(response, (size_t)response_size, FORMAT_ERROR, 11, "Nonexistent message!");
-    else
+    int message_id;
+    if (stoint(args[3], &message_id) && delete_message(message_id))
         snprintf(response, (size_t)response_size, "%d&Deleted message with id %d", 0, message_id);
+    else
+        snprintf(response, (size_t)response_size, FORMAT_ERROR, 11, "Nonexistent message!");
 }
 
 
 
 void expand_message(char **args, char *response, int response_size)
 {
-    char* last_converted;
-    int message_id = (int)strtol(args[3], &last_converted, 10);
-    msg* message;
+    int message_id;
+    msg* message = malloc(sizeof(msg));
 
-    if (last_converted == args[3] || (message = get_message(message_id)) == NULL)
+    if (!stoint(args[3], &message_id) || !get_message(message_id, message))
     {
         snprintf(response, (size_t)response_size, FORMAT_ERROR, 11, "Nonexistent message!");
         return;
@@ -348,9 +344,8 @@ void expand_message(char **args, char *response, int response_size)
  */
 void get_page(char** args, char* response, int response_size)
 {
-    char* last_converted;
-    int message_id = (int)strtol(args[3], &last_converted, 10);
-    if (last_converted == args[3])
+    int message_id;
+    if (!stoint(args[3], &message_id))
     {
         snprintf(response, (size_t)response_size, FORMAT_ERROR, 11, "Nonexistent message!");
         return;
@@ -409,9 +404,8 @@ void register_user(char **args, char *response, int response_size)
 
 void stalk_user(char** args, char* response, size_t response_size)
 {
-    char* last_converted;
-    int message_id = (int)strtol(args[4], &last_converted, 10);
-    if (last_converted == args[4])
+    int message_id;
+    if(!stoint(args[4], &message_id))
     {
         snprintf(response, response_size, FORMAT_ERROR, 11, "Nonexistent message!");
         return;

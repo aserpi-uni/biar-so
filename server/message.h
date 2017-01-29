@@ -23,7 +23,7 @@ typedef struct msg {
 /**
  * Closes the message part of the board.
  *
- * @warning This function must not be called directly.
+ * @warning Must not be called directly.
  */
 void close_message();
 
@@ -33,7 +33,7 @@ void close_message();
  *
  * @param id The message id.
  *
- * @return True if the message has been deleted or was already inactive, false if there is no message with such an id.
+ * @return If the message exists.
  */
 bool delete_message(int id); //Deactivate
 
@@ -53,17 +53,19 @@ int message(char* user, char* subject, char* content); //Insert
 /**
  * Gets a message with the specified id.
  *
- * @return A pointer to the desired message (must be freed by the user).
- * If there is no such a message or enough memory, NULL is returned.
+ * @param id The message id.
+ * @param message Pointer to a msg object in which copy the message.
+ *
+ * @return If the message exists.
  */
-msg* get_message(int id);  //Expand
+bool get_message(int id, msg* message);  //Expand
 
 
 /**
  * Get the page of the board containing the message with the specified id.
  *
  *
- * @param start First accepted message. If it -1, then the last page is returned.
+ * @param start First accepted message. If it is -1, then the last page is returned.
  * @param size In the location pointed by the parameter the number of messages is copied.
  * @param id In the location pointed by the parameter the id of the first message is copied.
  *

@@ -453,7 +453,7 @@ void get_page()
 
     printf("\n\nType the id of a message to see its content, ");
     printf("'N' to go to the next page, ");
-    printf("'P to go to the previous one, ");
+    printf("'P' to go to the previous one, ");
     printf("nothing to return to the main menu: ");
     fflush(stdout);
 
@@ -483,9 +483,7 @@ void get_page()
 
         printf("\nCommand not recognized!");
     }
-    else if (!stoint(command, &int_argument))
-        int_argument = 0;
-    else
+    else if (stoint(command, &int_argument))
     {
         memset(command, 0, COMMAND_SIZE);
         memset(user_argument, 0, USER_SIZE + 2);
@@ -579,8 +577,9 @@ void stalk_user()
     if(strlen(user_argument) == 0)
     get_user(user_argument);
 
-    snprintf(request, REQUEST_SIZE, "S&%s&%s&%s&%d", user, password, user_argument, int_argument);
+    int first_message = int_argument;
     int_argument = 0;
+    snprintf(request, REQUEST_SIZE, "S&%s&%s&%s&%d", user, password, user_argument, first_message);
 
     ssl_open();
     SSL_write(cSSL, request, REQUEST_SIZE);
@@ -595,8 +594,6 @@ void stalk_user()
         printf("\n%s", strtok(NULL, "&"));
 
         memset(user_argument, 0, USER_SIZE + 2);
-        int_argument = 0;
-
         return;
     }
 
@@ -605,12 +602,13 @@ void stalk_user()
 
     if(max == 0)
     {
-        printf("\n\nNo messages from the user.");
+        if (first_message == 0)
+            printf("\n\nNo messages from the user.");
+        else
+            printf("\n\nNo more messages");
         fflush(stdout);
 
         memset(user_argument, 0, USER_SIZE + 2);
-        int_argument = 0;
-
         return;
     }
 
